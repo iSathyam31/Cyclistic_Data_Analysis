@@ -1,0 +1,221 @@
+---
+title: "Cyclistic  Data Analytics"
+author: "Sathyam A"
+date: "2023-10-30"
+output: html_document
+---
+
+**Scenario :**
+In 2016, Cyclistic launched a successful bike-share offering. Since then, the program has grown to a fleet of 5,824 bicycles that are
+geotracked and locked into a network of 692 stations across Chicago. The bikes can be unlocked from one station and returned to
+any other station in the system anytime.
+Until now, Cyclistic’s marketing strategy relied on building general awareness and appealing to broad consumer segments. One
+2
+approach that helped make these things possible was the flexibility of its pricing plans: single-ride passes, full-day passes, and
+annual memberships. Customers who purchase single-ride or full-day passes are referred to as casual riders. Customers who
+purchase annual memberships are Cyclistic members.
+
+**Our task here is to give all the answers of the questions that have been asked by the Director**
+
+# Ask
+
+💡 **MARKETING TASK:**
+Three questions will guide the future marketing program:
+
+1. How do annual members and casual riders use Cyclistic bikes differently?
+2. Why would casual riders buy Cyclistic annual memberships?
+3. How can Cyclistic use digital media to influence casual riders to become members?
+
+
+# Prepare
+**Data Source:** We will be using the Cyclistic data of 2021 and analyze the first half of the year. The data set is publicly available on this [Link]("https://divvy-tripdata.s3.amazonaws.com/index.html")
+The data also follows the ROCCC approach in some extent. *Reliability* , *Original* , *Comprehensive* , *Current* , *Cited*
+
+1. Contains accurate, complete and unbiased info on Cyclistic’s historical bike trips. 
+
+2. The data is from the past 6 months. It is current and relevant to the task which has been given
+
+3. These sources are publicly available as given in the link and the data is provided by Cyclistic
+
+
+**Importing the necessary packages for the further analysis**
+```{r}
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+```
+
+```{r}
+library(skimr)
+library(janitor)
+library(lubridate)
+library(readr)
+library(ggmap)
+```
+
+
+**Importing the data sets of 6 months**
+```{r}
+jan <- read_csv("C:\\Users\\Admin\\Desktop\\202301-divvy-tripdata.csv")
+```
+
+```{r}
+feb <- read_csv("C:\\Users\\Admin\\Desktop\\202302-divvy-tripdata.csv")
+```
+
+```{r}
+mar <- read_csv("C:\\Users\\Admin\\Desktop\\202303-divvy-tripdata.csv")
+```
+
+```{r}
+apr <- read_csv("C:\\Users\\Admin\\Desktop\\202304-divvy-tripdata.csv")
+```
+
+```{r}
+may <- read_csv("C:\\Users\\Admin\\Desktop\\202305-divvy-tripdata.csv")
+```
+
+```{r}
+june <- read_csv("C:\\Users\\Admin\\Desktop\\202306-divvy-tripdata.csv")
+```
+
+# Process
+**Binding the Data together so that we can analyze it together**
+```{r}
+trip <- rbind(jan, feb, mar, apr, may, june)
+```
+
+Notice here one thing that started_at and ended_at attributes are in the form of characters but since these are the date attributes we have to change the format from character to DATE
+
+```{r}
+trip$started_at = strptime(trip$started_at,"%Y-%m-%d %H:%M:%S")
+trip$ended_at = strptime(trip$ended_at,"%Y-%m-%d %H:%M:%S")
+
+```
+
+```{r}
+trip<-mutate(trip,tripduration=difftime(ended_at,started_at, units = "secs"))
+```
+
+**Let's check out the data**
+```{r}
+head(trip)
+```
+```{r}
+glimpse(trip)
+```
+
+Viewing Trip data we find a lot of values less than zero.So we keep everything greater than 0
+```{r}
+trip <- filter(trip,trip$tripduration>0)
+```
+
+```{r}
+glimpse(trip)
+```
+
+**We have a lot of left out spaces , this makes our data inconsistent so we remove these null values**
+```{r}
+trip<-trip %>% 
+  na.omit()
+```
+
+**Make different columns for Date, Day, Month, Year to make things easier**
+```{r}
+trip$date<-as.Date(trip$started_at)
+trip$month<-format(as.Date(trip$started_at),"%m")
+trip$day<-format(as.Date(trip$started_at),"%d")
+trip$year<-format(as.Date(trip$started_at),"%y")
+trip$day_of_week<-format(as.Date(trip$started_at),"%A")
+```
+
+
+# Analyze
+Here will be performing calculations on the data and identification of trends, patterns and relationships as well as statistical analysis by calculating mean, median, maximum and minimum on ride length column for both casual riders and members
+
+```{r}
+trip %>% 
+  group_by(member_casual) %>% summarise(average_trip_duration=mean(tripduration),median_duration=median(tripduration),max_trip_duration=max(tripduration),min_trip_duration=min(tripduration))
+```
+
+```{r}
+# Total number of rides
+trip %>% 
+  group_by(member_casual) %>% 
+  summarise(ride_count=length(ride_id))
+```
+
+```{r}
+breaks<-hour((hm("00:00", "6:00", "12:00", "18:00", "23:59")))
+
+labels <- c("Night", "Morning", "Afternoon", "Evening")
+```
+
+```{r}
+trip$time_of_the_trip <-cut(x=hour(trip$started_at), breaks = breaks, labels = labels, include.lowest = "true")
+```
+
+```{r}
+# Comparing Ride Lengths between different Times of the Day
+trip %>% 
+  group_by(member_casual,time_of_the_trip) %>% 
+  summarise(number_of_rides=n(),average_trip_duration=mean(tripduration),.groups = "drop")
+```
+
+# Share
+Sharing the Data through the art of Visualization is one of the most beautiful techniques.Here we are going to see some relationship between the attributes
+
+```{r}
+ggplot(data = trip) + 
+  geom_bar(mapping = aes(x = member_casual, fill = member_casual)) +
+  scale_fill_manual(values = c("casual" = "#5C5470", "member" = "#001524")) +
+  labs(title = "Total No of Rides", x = "Rider", y = "Count of Rider")
+
+```
+
+```{r}
+ggplot(data = trip) +
+  geom_bar(mapping = aes(x = day_of_week, fill = member_casual), position = "dodge") +
+  scale_fill_manual(values = c("casual" = "#DAC0A3", "member" = "#102C57"))+
+  labs(title = "Total Rides of Riders vs. Day of The Week")
+```
+
+```{r}
+trip %>% 
+  group_by(member_casual, month) %>%
+  summarise(average_ride_length = mean(tripduration), .groups = "drop") %>%
+  ggplot(aes(x = month, y = average_ride_length, fill = member_casual)) +
+  geom_col(width = 0.5, position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("casual" = "#DAC0A3", "member" = "#102C57"))+
+  labs(title = "Average ride length vs. month")
+```
+
+```{r}
+trip%>% 
+  group_by(member_casual) %>%
+  summarise(average_ride_distance = mean(tripduration)) %>%
+  ggplot() + geom_col(mapping = aes(x = member_casual, y = average_ride_distance, fill = member_casual), show.legend = FALSE) + scale_fill_manual(values = c("casual" = "#C1D8C3", "member" = "#6A9689"))+
+  labs(title = "Mean Distance Travelled")
+```
+
+```{r}
+ggplot(data = trip) +
+  geom_bar(mapping = aes(x = rideable_type, fill = member_casual), position = "fill") +
+  scale_fill_manual(values = c("casual" = "#001524", "member" = "#445D48"))+
+  labs(title = "Total Rides of Riders vs. Day of The Week")
+```
+
+
+# Act
+## Recommendations
+
+1.**Weekend Membership Incentives:** Recognizing the strong preference of casual riders for weekend riding, Cyclistic can introduce a specialized weekend membership package. This strategic move not only appeals to both existing and potential casual riders but also serves as a means to encourage them to consider extended membership options. By tailoring the offering to the needs and habits of the target audience, we can effectively boost our membership numbers
+
+2.**Strategic Marketing and Promotional Campaigns:** Cyclistic experiences its peak ride season in the third quarter, providing a prime opportunity for impactful marketing and promotional campaigns. Focused efforts during this period can yield maximum results. We recommend conducting these campaigns near popular riding destinations, capitalizing on the heightened rider engagement. Given the prominence of classic bikes in our fleet, crafting promotions catering to this preference can further enhance our market reach.
+
+3.**Competitions and Membership Discounts:** To foster rider engagement and loyalty, Cyclistic can orchestrate exciting bike riding competitions with enticing rewards. This strategy not only promotes a sense of community among our riders but also serves as a unique selling point. Furthermore, offering discounted yearly memberships to competition participants can significantly boost the appeal of our memberships and incentivize long-term commitment.
+
+
+
+
+
